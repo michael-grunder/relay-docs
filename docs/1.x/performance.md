@@ -36,7 +36,7 @@ The default locking mechanism used for the in-memory cache and allocator is `ada
 
 ## `relay.flush_batch_size`
 
-Since v0.50.0, Relay reclaims flushed cache memory incrementally. Flushing removes the affected data from the active cache, so new reads cannot use those entries. Once existing readers can no longer reference the retired data, Relay frees its entries in batches. This spreads cleanup work across callbacks instead of processing a large cache all at once.
+Relay reclaims flushed cache memory incrementally. Flushing removes the affected data from the active cache, so new reads cannot use those entries. Once existing readers can no longer reference the retired data, Relay frees its entries in batches. This spreads cleanup work across callbacks instead of processing a large cache all at once.
 
 The `relay.flush_batch_size` directive sets the maximum number of cached entries reclaimed per cleanup callback for a flushed database map. It defaults to `1024`; values below `1` are treated as `1`.
 
@@ -51,7 +51,7 @@ Set this directive in your INI configuration before PHP starts and restart PHP w
 
 Start with the default and measure application latency and memory usage during cache flushes and repopulation. The batch size counts entries, not bytes or milliseconds, so it does not impose a fixed latency limit. Reclaimed space becomes available within Relay's shared memory allocation; flushing does not shrink `relay.maxmemory` or return that allocation to the operating system.
 
-This setting controls memory cleanup after a flush; it does not delay cache invalidation. For example, [`Relay\Relay::flushMemory()`](https://docs.relay.so/api/develop/Relay/Relay.html#method_flushMemory) flushes Relay's local cache without deleting data from Redis. Since v0.50.0, it covers all existing databases in the requested scope, including those without active writers, while memory reclamation can continue after the call returns.
+This setting controls memory cleanup after a flush; it does not delay cache invalidation. For example, [`Relay\Relay::flushMemory()`](https://docs.relay.so/api/develop/Relay/Relay.html#method_flushMemory) flushes Relay's local cache without deleting data from Redis. It covers all existing databases in the requested scope, including those without active writers, while memory reclamation can continue after the call returns.
 
 ## `relay.cap_endpoint_dbs`
 
