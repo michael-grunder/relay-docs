@@ -139,7 +139,7 @@ $cluster->setOption(Cluster::OPT_FAILOVER, Cluster::FAILOVER_REPLICAS);
 
 ## `OPT_NODE_READ_TIMEOUT`
 
-Available since v0.50.0. Sets a per-node read timeout in **seconds** for distributed or failover readonly commands. The default is `0.0`, which disables the override. Values must be finite and nonnegative.
+Sets a per-node read timeout in **seconds** for distributed or failover readonly commands. The default is `0.0`, which disables the override. Values must be finite and nonnegative.
 
 ```php
 use Relay\Cluster;
