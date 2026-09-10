@@ -138,7 +138,7 @@ $cluster1 = new Relay\Cluster('pleiades');
 
 ### Cluster read timeouts
 
-Since v0.50.0, `OPT_NODE_READ_TIMEOUT` can shorten the wait for a slow node during distributed or failover reads. Pair it with the [distribution and failover options](/docs/1.x/options#optdistribute) to allow another node to serve the read:
+Using `OPT_NODE_READ_TIMEOUT` can shorten the wait for a slow node during distributed or failover reads. Pair it with the [distribution and failover options](/docs/1.x/options#optdistribute) to allow another node to serve the read:
 
 ```php
 use Relay\Cluster;
@@ -160,7 +160,7 @@ The default per-node timeout is `0.0`, disabling the override. It applies to ind
 
 ### Cluster health checks
 
-Since v0.50.0, Relay uses configurable backoff when checking unhealthy nodes. A node that exceeds its per-node read timeout is marked unhealthy. When selecting replicas for distribution or failover, Relay skips unhealthy nodes until they are eligible for another health check.
+Relay uses configurable backoff when checking unhealthy nodes. A node that exceeds its per-node read timeout is marked unhealthy. When selecting replicas for distribution or failover, Relay skips unhealthy nodes until they are eligible for another health check.
 
 Checks happen as part of node selection after the delay has elapsed. A failed check schedules another attempt using the configured backoff; a successful check restores the node and resets its failure history. The per-node timeout also bounds health-check work, including reconnecting during a check, so probing an unhealthy replica can be cut short before trying another candidate.
 
