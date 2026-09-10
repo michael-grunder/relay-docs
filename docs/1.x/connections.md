@@ -18,6 +18,14 @@ $redis->connect('127.0.0.1', 6379);
 $redis->auth('secret');
 ```
 
+## Shared cache and writers
+
+In the development version after v0.50.0, connections to the same endpoint share one in-memory cache across the PHP worker pool. Each Redis database has its own map within that cache.
+
+The `relay.max_db_writers` directive limits how many tracking connections can populate the cache. It defaults to `4` per endpoint. Each writer has its own lease and manages its own invalidations; multiple connections in one PHP worker can count as separate writers.
+
+Connections without a writer slot can still read cached data, fetch uncached data from Redis, and issue writes to Redis. They cannot populate the shared cache. See [Performance](/docs/1.x/performance) for writer limits, lease sizing, and the tradeoff between throughput and system utilization.
+
 ## Authentication
 
 Given that all of Relay’s connections are persistent, it has to store Redis credentials in memory. To protect against side-channel attacks, all secrets are encrypted with the [XTEA block cipher](https://en.wikipedia.org/wiki/XTEA), and decoded only when needed for authentication/re-authentication.

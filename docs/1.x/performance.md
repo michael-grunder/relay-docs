@@ -4,27 +4,36 @@ title: Performance
 
 # Performance
 
-For Relay to perform at its peak, some configuration directives might need to be adjusted to match your system.
+Relay's writer limit is the main control for balancing cache throughput against system utilization. Tune it for your application's workload and available CPU capacity.
 
-Relay keeps its in-memory replica in the PHP master process and is built around a multi-threaded, lock-free read path: every PHP worker reads from the shared cache concurrently, without blocking on a global lock. This sidesteps the single-threaded bottleneck that often pushes Redis deployments into extra replication or clustering, and lets throughput scale with the number of CPU cores. The directives below tune how that shared memory is sized and partitioned, and which locking primitives Relay uses for writes and allocation.
+**Version note:** The shared-cache model below applies to the development version after v0.50.0.
 
-## `relay.max_endpoint_dbs`
-
-This directive determines the maximum number of PHP workers that will have their own in-memory cache. Not all workers need their own cache — workers without one become read-only workers that read from the shared memory pool. Giving too many workers an in-memory cache can negatively impact performance.
-
-The default of `32` should be tuned to the number of CPU cores or maximum workers, whichever is lower:
-
-```
-max_endpoint_dbs = min(vCPUs, pm.max_children)
-```
-
-This setting is per connection endpoint (distinct Redis connections), meaning connecting to two separate Redis instances will double the number of workers that have their own cache. See also [`relay.cap_endpoint_dbs`](#relaycap_endpoint_dbs).
+Each endpoint owns one cache in shared memory, with a separate map and writer lock for each Redis database. All PHP workers in the same process pool can read that cache concurrently through Relay's lock-free read path. A configurable number of tracking connections can populate the cache and manage their own invalidations.
 
 ## `relay.max_db_writers`
 
-This directive determines the maximum number of writers for a given cache. Writers are PHP workers with a persistent connection to Redis that can write to the cache and manage their own invalidations. Any number of workers can read from any cache.
+This directive limits the number of tracking connections allowed to populate each endpoint's shared cache. The default is `4`, and the supported range is `1–1024`. The limit counts connections: multiple connections in one PHP worker can each occupy a writer slot.
 
-The default of `4` is a good starting point for most setups. This value should not be larger than the number of cores on the machine.
+Connections without a writer slot can read cached data and fall back to Redis when needed, but cannot populate the cache. This limit does not restrict how many connections can read the cache or issue writes to Redis.
+
+Increasing the writer limit can improve throughput, even at very high writer counts, but the gains can come at a substantial cost in CPU usage and overall system utilization. More writers share the same cache locks and each manages its own invalidations. The setting that achieves the highest throughput may leave too little capacity for the rest of your application.
+
+Start with the default and increase it gradually under a representative workload. Measure throughput, application latency, and CPU utilization together, including periods when the cache is being populated or frequently invalidated. Choose a limit that meets your throughput needs while preserving capacity for PHP and other services. The number of CPU cores is useful context, but is not a hard ceiling on the writer limit.
+
+```ini
+relay.max_db_writers = 4
+relay.key_leases = 32
+```
+
+These settings are loaded when PHP starts. Restart PHP workers after changing them, and ensure the lease pool can accommodate the writers you intend to use.
+
+## `relay.key_leases`
+
+Each admitted tracking connection needs its own lease. `relay.key_leases` controls the shared pool of leases across all endpoints, including separate Redis servers and individual cluster nodes. Its default is `32`.
+
+Relay allocates at least as many slots as `relay.max_db_writers`, rounds the allocation up to a power of two, and uses a minimum of `16` and a maximum of `32768` slots. This automatic sizing covers the writer limit for one endpoint; deployments using several endpoints may need a larger pool. For example, four endpoints with eight writers each need at least 32 leases in total.
+
+An available lease does not bypass the per-endpoint writer limit. Conversely, a connection needs an available lease to become a writer even if its endpoint has room for more writers.
 
 ## `relay.locks.*`
 
@@ -53,8 +62,12 @@ Start with the default and measure application latency and memory usage during c
 
 This setting controls memory cleanup after a flush; it does not delay cache invalidation. For example, [`Relay\Relay::flushMemory()`](https://docs.relay.so/api/develop/Relay/Relay.html#method_flushMemory) flushes Relay's local cache without deleting data from Redis. Since v0.50.0, it covers all existing databases in the requested scope, including those without active writers, while memory reclamation can continue after the call returns.
 
+## `relay.max_endpoint_dbs`
+
+Removed in the development version after v0.50.0. Each endpoint now has one shared cache, and this directive is ignored. Replace the old cache-count tuning with [`relay.max_db_writers`](#relaymax_db_writers).
+
+If your deployment previously used multiple caches per endpoint, you may need to increase `relay.max_db_writers` to preserve your intended total writer capacity. Relay does not multiply the old cache count into the writer limit automatically. Benchmark the new setting and size [`relay.key_leases`](#relaykey_leases) for the total writers across endpoints.
+
 ## `relay.cap_endpoint_dbs`
 
-When enabled (the default), Relay will cap `max_endpoint_dbs` to the number of detected CPU cores. This is a sensible safeguard that prevents over-allocation on systems where `pm.max_children` exceeds the core count.
-
-When using `spinlock` on a machine with few cores, a lower `max_endpoint_dbs` value like `4` will likely perform well.
+Removed alongside `relay.max_endpoint_dbs` and ignored. Relay no longer caps the number of endpoint caches to the CPU count; each endpoint has one shared cache. Tune the writer limit using the throughput and utilization guidance above.
