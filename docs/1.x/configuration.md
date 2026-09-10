@@ -50,7 +50,7 @@ To disable all in-memory caching and memory allocation `relay.maxmemory` can be 
 
 ## Cluster directives
 
-The health-check backoff settings are available since v0.50.0. See [Cluster health checks](/docs/1.x/connections#cluster-health-checks) for how they affect node recovery and interact with per-node read timeouts.
+See [Cluster health checks](/docs/1.x/connections#cluster-health-checks) for how they affect node recovery and interact with per-node read timeouts.
 
 | Directive                              | Default          | Description                                                         |
 | -------------------------------------- | ---------------- | ------------------------------------------------------------------- |
